@@ -293,6 +293,35 @@ describe('limits and moderation policy', () => {
   });
 });
 describe('Durable Object persistence', () => {
+  it('keeps an upgraded Gateway socket open past the handshake deadline', async () => {
+    await runInDurableObject(env.GATEWAY.getByName('handshake-test'), async (instance) => {
+      const pair = new WebSocketPair();
+      pair[1].accept();
+      let signal: AbortSignal | null | undefined;
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      // Put native timeout signals on the same virtual clock as handshake timers.
+      vi.spyOn(AbortSignal, 'timeout').mockImplementation((delay) => {
+        const controller = new AbortController();
+        setTimeout(() => controller.abort(), delay);
+        return controller.signal;
+      });
+      vi.spyOn(globalThis, 'fetch').mockImplementation(async (_input, options) => {
+        signal = options?.signal;
+        return new Response(null, { status: 101, webSocket: pair[0] });
+      });
+      instance['running'] = true;
+      try {
+        await instance['open']();
+        await vi.advanceTimersByTimeAsync(10500);
+        expect(signal?.aborted).toBe(false);
+        expect(instance['socket']?.readyState).toBe(1);
+      } finally {
+        vi.useRealTimers();
+        await instance.stop();
+        pair[1].close();
+      }
+    });
+  }, 15000);
   const payload = (id: string) => ({
     id,
     guild_id: guild,

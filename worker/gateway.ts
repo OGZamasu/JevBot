@@ -198,10 +198,18 @@ export class DiscordGateway extends DurableObject<AppEnv> {
       throw new Error('Invalid Gateway host');
     url.protocol = 'https:';
     url.search = '?v=10&encoding=json';
-    const response = await fetch(url, {
-      headers: { Upgrade: 'websocket' },
-      signal: AbortSignal.timeout(10000),
-    });
+    // Limit the handshake only: an abort after upgrading also closes the live socket.
+    const handshake = new AbortController();
+    const deadline = setTimeout(() => handshake.abort(), 10000);
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        headers: { Upgrade: 'websocket' },
+        signal: handshake.signal,
+      });
+    } finally {
+      clearTimeout(deadline);
+    }
     const ws = response.webSocket;
     if (!ws) throw new Error('Missing Gateway websocket');
     this.socket = ws;
