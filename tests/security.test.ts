@@ -115,6 +115,16 @@ describe('limits and moderation policy', () => {
     const result = await evaluateJev('fake-key', 'jev-latest', message);
     expect(decide(result.evaluation, presetSettings('strict'), 99).action).toBe('review');
   });
+  it('preserves actual probabilities when the model requests review', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ model: 'jev-latest', answers: { spam: { type: 'choice', choice: 'uncertain', confidence: .6, probabilities: { spam: .1, legitimate: .3, uncertain: .6 } } }, usage: { input_tokens: 12, output_tokens: 3 } }));
+    const result = await evaluateJev('fake-key', 'jev-latest', message);
+    expect(result.evaluation.probability).toBe(.1);
+    expect(decide(result.evaluation, presetSettings('strict'), 99).action).toBe('review');
+  });
+  it('reports malformed provider responses as provider failures', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ error: 'Malformed provider payload' }));
+    await expect(evaluateJev('fake-key', 'jev-latest', message)).rejects.toThrow('Jev is unavailable');
+  });
   it('uses fresh nonces and a constant-time comparison in the Workers runtime', async () => {
     expect(await equal('same', 'same')).toBe(true); expect(await equal('same', 'other')).toBe(false);
     expect(await encrypt('key', env.ENCRYPTION_KEY!, guild)).not.toBe(await encrypt('key', env.ENCRYPTION_KEY!, guild));
@@ -152,6 +162,20 @@ describe('Durable Object persistence', () => {
     expect(transport).toHaveBeenCalledTimes(1);
     expect(await env.DB.prepare('SELECT action, ai_status FROM incidents').first()).toEqual({ action: 'allow', ai_status: 'unavailable' });
     expect(await env.DB.prepare('SELECT failures FROM usage_daily').first('failures')).toBe(1);
+  });
+  it('cancels an in-flight action when the owner stops the bot', async () => {
+    await env.DB.prepare('INSERT INTO settings VALUES (?, ?, ?, ?)').bind(guild, JSON.stringify(presetSettings('balanced')), Date.now(), owner).run();
+    await env.DB.prepare('INSERT INTO secrets VALUES (?, ?, ?)').bind(guild, await encrypt('test-only-key', env.ENCRYPTION_KEY!, guild), Date.now()).run();
+    await runInDurableObject(env.GATEWAY.getByName('stop-test'), async instance => {
+      instance['running'] = true;
+      const transport = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
+        await instance.stop();
+        return Response.json({ model: 'jev-latest', answers: { spam: { type: 'choice', choice: 'spam', confidence: .99, probabilities: { spam: .99, legitimate: .005, uncertain: .005 } } }, usage: { input_tokens: 20, output_tokens: 2 } });
+      });
+      await instance['moderate'](payload('stop'), false);
+      expect(transport).toHaveBeenCalledTimes(1);
+    });
+    expect(await env.DB.prepare('SELECT status FROM incidents').first('status')).toBe('cancelled_bot_stopped');
   });
   it('persists Gateway resume sequence and session data', async () => {
     const stub = env.GATEWAY.getByName('protocol-test');

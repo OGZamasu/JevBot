@@ -60,10 +60,12 @@ export class DiscordGateway extends DurableObject<AppEnv> {
   }
   async stop() {
     this.write('running', false); this.running = false;
+    this.resume = null;
     this.clearHeartbeat();
     const socket = this.socket; this.socket = null;
     if (socket && socket.readyState < 2) socket.close(1000, 'Stopped by owner');
     this.ctx.storage.sql.exec('DELETE FROM recent');
+    this.ctx.storage.sql.exec('DELETE FROM processed');
     this.status.state = 'stopped'; this.persist();
     await this.ctx.storage.deleteAlarm();
     return this.getStatus();
@@ -120,6 +122,7 @@ export class DiscordGateway extends DurableObject<AppEnv> {
       if ([4004, 4010, 4011, 4012, 4013, 4014].includes(event.code)) {
         this.running = false; this.write('running', false);
         this.ctx.storage.sql.exec('DELETE FROM recent');
+        this.ctx.storage.sql.exec('DELETE FROM processed');
         this.status.state = 'error'; this.status.lastError = event.code === 4014 ? 'Enable the Message Content intent in Discord' : `Discord rejected Gateway configuration (${event.code})`;
         this.background(this.ctx.storage.deleteAlarm());
       } else if (this.running) {
@@ -176,7 +179,7 @@ export class DiscordGateway extends DurableObject<AppEnv> {
   private enqueue(job: () => Promise<void>) {
     if (this.pending >= 50) { this.status.dropped++; this.status.lastError = 'Moderation backlog full; some messages were skipped'; this.persist(); return; }
     this.pending++;
-    this.queue = this.queue.then(job).catch(() => { this.status.lastError = 'A moderation operation failed'; this.persist(); }).finally(() => { this.pending--; });
+    this.queue = this.queue.then(async () => { if (this.running) await job(); }).catch(() => { this.status.lastError = 'A moderation operation failed'; this.persist(); }).finally(() => { this.pending--; });
     this.ctx.waitUntil(this.queue);
   }
   private async registerGuild(d: Record<string, unknown>) {
@@ -243,6 +246,7 @@ export class DiscordGateway extends DurableObject<AppEnv> {
       // Re-read immediately before enforcement so an admin pause takes effect during an AI call.
       const current = forChannel(await getSettings(this.env.DB, d.guild_id), d.channel_id);
       if (JSON.stringify(current) !== JSON.stringify(config)) status = 'cancelled_settings_changed';
+      else if (!this.running) status = 'cancelled_bot_stopped';
       else {
         try {
           if (decision.action === 'warn') await discordRequest(this.env.DISCORD_BOT_TOKEN!, `/channels/${d.channel_id}/messages`, { method: 'POST', body: { content: `<@${d.author.id}> Please avoid spam. A moderator can review this detection.`, allowed_mentions: { parse: [] } } });

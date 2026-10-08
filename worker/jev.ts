@@ -27,14 +27,17 @@ export async function evaluateJev(key: string, model: string, message: Pick<Mess
     }),
   });
   if (!response.ok) { await response.body?.cancel(); throw new JevError(response.status); }
-  const raw: unknown = await response.json();
-  const result = answerSchema.parse(raw);
+  const raw: unknown = await response.json().catch(() => { throw new JevError(502); });
+  const parsed = answerSchema.safeParse(raw);
+  if (!parsed.success) throw new JevError(502);
+  const result = parsed.data;
   const answer = result.answers.spam;
   const evaluation: Evaluation = {
     probability: answer.probabilities.spam, confidence: answer.confidence, source: 'jev', aiStatus: 'evaluated',
     signals: answer.choice === 'legitimate' ? [] : [{ rule: 'contextual_spam', detail: answer.choice === 'uncertain' ? 'Jev requested moderator review' : 'Jev detected contextual spam', probability: answer.probabilities.spam }],
   };
   // An uncertain choice cannot become an automatic action even with a high spam probability.
-  if (answer.choice !== 'spam' && answer.probabilities.spam >= 0.5 || answer.choice === 'uncertain') { evaluation.probability = Math.max(0.5, answer.probabilities.spam); evaluation.confidence = 0; }
+  if (answer.choice === 'uncertain') { evaluation.aiStatus = 'needs_review'; evaluation.confidence = 0; }
+  else if (answer.choice !== 'spam' && answer.probabilities.spam >= 0.5) evaluation.confidence = 0;
   return { evaluation, usage: result.usage, model: result.model };
 }

@@ -69,6 +69,7 @@ Treat the Gateway host as a small-server pilot until a live reconnect test and a
 
 ## Data and operational limits
 
+- Automatic trace storage and export are disabled because platform traces include full request URLs, including OAuth callback codes. Structured application error logs remain enabled and omit credentials and message content.
 - Sessions expire after 24 hours and are invalidated when an owner revokes access. Grants and write permissions are checked on every request. Mutations require the correct Origin and CSRF token.
 - API keys use AES-256-GCM with server ID as associated data. Stored plaintext is never returned through the dashboard API. Keep the master encryption key backed up; changing it makes existing saved keys unreadable.
 - Gateway context expires after approximately two minutes, with a one-minute cleanup alarm. Up to three recent messages, capped at 500 characters each, may accompany the current message in an AI request. Deduplication fingerprints expire after 24 hours.

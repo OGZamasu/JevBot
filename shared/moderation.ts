@@ -52,6 +52,7 @@ export function shouldUseAI(message: Message, settings: Settings, signals: Signa
 export function decide(evaluation: Evaluation, settings: Settings, previousStrikes: number): Decision {
   if (!settings.enabled) return { action: 'allow', reason: 'Moderation paused' };
   const detail = evaluation.signals.map(signal => signal.detail).join('; ');
+  if (evaluation.aiStatus === 'needs_review') return { action: 'review', reason: detail || 'Jev requested moderator review' };
   if (evaluation.probability < settings.spamThreshold) {
     return evaluation.probability >= 0.5 ? { action: 'review', reason: detail || 'Uncertain spam detection' } : { action: 'allow', reason: 'No spam detected' };
   }

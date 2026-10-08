@@ -59,7 +59,8 @@
     },
     "traces": {
       "enabled": true,
-      "head_sampling_rate": 0.01
+      "head_sampling_rate": 0.01,
+      "persist": false
     }
   },
   "account_id": "679e9fef9a02f1e0bfb87db52f1993c0",

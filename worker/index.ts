@@ -23,7 +23,7 @@ app.use('*', async (c, next) => {
   c.header('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://cdn.discordapp.com; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
   if (c.req.path.startsWith('/api/') || c.req.path.startsWith('/auth/')) c.header('Cache-Control', 'no-store');
 });
-app.use('*', bodyLimit({ maxSize: 16384, onError: c => c.json({ error: 'Request body is too large' }, 413) }));
+app.use('*', bodyLimit({ maxSize: 131072, onError: c => c.json({ error: 'Request body is too large' }, 413) }));
 app.onError((error, c) => {
   if (error instanceof HTTPException) return c.json({ error: error.message }, error.status);
   if (error instanceof z.ZodError) return c.json({ error: 'Invalid input', details: error.issues.map(i => `${i.path.join('.')}: ${i.message}`) }, 400);
