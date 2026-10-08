@@ -1,0 +1,4 @@
+APP_ORIGIN=http://127.0.0.1:8787
+DISCORD_CLIENT_SECRET=your-local-oauth-client-secret
+DISCORD_BOT_TOKEN=your-local-bot-token
+ENCRYPTION_KEY=replace-with-64-hex-characters-from-a-secure-random-generator
