@@ -216,6 +216,7 @@ export class DiscordGateway extends DurableObject<AppEnv> {
     this.awaitingAck = false;
     this.status.lastAckAt = null;
     ws.accept();
+    const openedAt = Date.now();
     ws.addEventListener('message', (event) => {
       if (this.socket !== ws || typeof event.data !== 'string') return;
       try {
@@ -227,6 +228,9 @@ export class DiscordGateway extends DurableObject<AppEnv> {
     });
     ws.addEventListener('close', (event) => {
       if (this.socket !== ws) return;
+      console.log(
+        JSON.stringify({ event: 'gateway_closed', code: event.code, ageMs: Date.now() - openedAt }),
+      );
       this.socket = null;
       this.clearHeartbeat();
       if ([4004, 4010, 4011, 4012, 4013, 4014].includes(event.code)) {
@@ -243,6 +247,7 @@ export class DiscordGateway extends DurableObject<AppEnv> {
       } else if (this.running) {
         if ([4007, 4009].includes(event.code)) this.resume = null;
         this.status.state = 'reconnecting';
+        this.status.lastError = `Discord Gateway disconnected (${event.code})`;
         this.status.reconnects++;
         this.background(this.ctx.storage.setAlarm(Date.now() + 10000));
       }
