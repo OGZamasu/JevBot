@@ -9,65 +9,58 @@
     "directory": "./dist",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": [
-      "/api/*",
-      "/auth/*"
-    ]
+    "run_worker_first": ["/api/*", "/auth/*"],
   },
   "vars": {
     "APP_ORIGIN": "https://bot.example.com",
     "DISCORD_CLIENT_ID": "YOUR_DISCORD_APPLICATION_ID",
     "OWNER_DISCORD_ID": "YOUR_DISCORD_USER_ID",
     "JEV_MODEL": "jev-latest",
-    "SOURCE_URL": "https://github.com/YOUR_ACCOUNT/JevBot"
+    "SOURCE_URL": "https://github.com/YOUR_ACCOUNT/JevBot",
   },
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "jevbot",
       "migrations_dir": "migrations",
-      "database_id": "YOUR_D1_DATABASE_ID"
-    }
+      "database_id": "YOUR_D1_DATABASE_ID",
+    },
   ],
   "durable_objects": {
     "bindings": [
       {
         "name": "GATEWAY",
-        "class_name": "DiscordGateway"
-      }
-    ]
+        "class_name": "DiscordGateway",
+      },
+    ],
   },
   "migrations": [
     {
       "tag": "v1",
-      "new_sqlite_classes": [
-        "DiscordGateway"
-      ]
-    }
+      "new_sqlite_classes": ["DiscordGateway"],
+    },
   ],
   "triggers": {
-    "crons": [
-      "*/5 * * * *"
-    ]
+    "crons": ["*/5 * * * *"],
   },
   "observability": {
     "enabled": true,
     "logs": {
       "enabled": true,
       "head_sampling_rate": 1,
-      "invocation_logs": false
+      "invocation_logs": false,
     },
     "traces": {
       "enabled": true,
       "head_sampling_rate": 0.01,
-      "persist": false
-    }
+      "persist": false,
+    },
   },
   "account_id": "YOUR_CLOUDFLARE_ACCOUNT_ID",
   "routes": [
     {
       "pattern": "bot.example.com",
-      "custom_domain": true
-    }
-  ]
+      "custom_domain": true,
+    },
+  ],
 }
