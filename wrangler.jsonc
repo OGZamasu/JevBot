@@ -1,0 +1,72 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "jevbot",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-10-07",
+  "workers_dev": false,
+  "preview_urls": false,
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": [
+      "/api/*",
+      "/auth/*"
+    ]
+  },
+  "vars": {
+    "APP_ORIGIN": "https://jevbot.zamasu.dev",
+    "DISCORD_CLIENT_ID": "1557582714213892096",
+    "OWNER_DISCORD_ID": "300277777708613633",
+    "JEV_MODEL": "jev-latest",
+    "SOURCE_URL": "https://github.com/OGZamasu/JevBot"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "jevbot",
+      "migrations_dir": "migrations",
+      "database_id": "053dabf5-cac5-44bf-869b-9ad39b38cb19"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "GATEWAY",
+        "class_name": "DiscordGateway"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": [
+        "DiscordGateway"
+      ]
+    }
+  ],
+  "triggers": {
+    "crons": [
+      "*/5 * * * *"
+    ]
+  },
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "invocation_logs": false
+    },
+    "traces": {
+      "enabled": true,
+      "head_sampling_rate": 0.01
+    }
+  },
+  "account_id": "679e9fef9a02f1e0bfb87db52f1993c0",
+  "routes": [
+    {
+      "pattern": "jevbot.zamasu.dev",
+      "custom_domain": true
+    }
+  ]
+}
